@@ -109,6 +109,7 @@ BOARD_USES_METADATA_PARTITION := true
 TARGET_VENDOR_PROP += $(COMMON_PATH)/vendor.prop
 TARGET_PRODUCT_PROP += $(COMMON_PATH)/product.prop
 TARGET_PRODUCT_PROP += $(COMMON_PATH)/system.prop
+VENDOR_SECURITY_PATCH := 2026-08-01
 
 # SEPolicy
 include device/mediatek/sepolicy_vndr/SEPolicy.mk

@@ -38,6 +38,12 @@ vendor/lib64/vendor.mediatek.hardware.audio@7.1.so
 vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so
 vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so
 
+# Audio (LHDC)
+system/lib64/liblhdc.so
+system/lib64/liblhdcBT_enc.so
+system/lib64/liblhdcv5.so
+system/lib64/liblhdcv5BT_enc.so
+
 # Bluetooth (Driver)
 vendor/lib64/hw/vendor.mediatek.hardware.bluetooth.audio@2.2-impl.so
 vendor/lib64/libbluetooth_audio_session_mediatek.so
