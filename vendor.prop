@@ -132,8 +132,8 @@ persist.vendor.vilte_support=1
 persist.vendor.ims_support=1
 persist.vendor.volte_support=1
 ro.vendor.mtk_data_config=1
-ro.vendor.mtk_carrierexpress_pack=na
-ro.vendor.ril.carrierexpress_slim=yes
+ro.vendor.mtk_carrierexpress_pack=wwpo
+persist.vendor.mtk_usp_switch_mode=1
 ro.com.android.mobiledata=true
 
 # LMK

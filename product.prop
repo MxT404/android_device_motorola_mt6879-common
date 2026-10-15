@@ -12,3 +12,7 @@ vendor.camera.aux.packagelist=org.lineageos.aperture,com.motorola.camera3
 # Skia tracing
 debug.hwui.skia_tracing_enabled=false
 debug.hwui.skia_use_perfetto_track_events=false
+
+# IMS
+persist.dbg.volte_avail_ovr=1
+persist.dbg.wfc_avail_ovr=1
