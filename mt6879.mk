@@ -360,5 +360,9 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.wifi.passpoint.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.passpoint.xml \
     frameworks/native/data/etc/android.hardware.wifi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.xml
 
+# Dolby
+TARGET_INCLUDES_OEM_App := true
+$(call inherit-product, hardware/dolby/dolby.mk)
+
 # Inherit the proprietary files
 $(call inherit-product, vendor/motorola/mt6879-common/mt6879-common-vendor.mk)
