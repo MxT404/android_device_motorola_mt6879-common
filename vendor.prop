@@ -132,6 +132,9 @@ persist.vendor.vilte_support=1
 persist.vendor.ims_support=1
 persist.vendor.volte_support=1
 ro.vendor.mtk_data_config=1
+ro.vendor.mtk_carrierexpress_pack=na
+ro.vendor.ril.carrierexpress_slim=yes
+ro.com.android.mobiledata=true
 
 # LMK
 ro.lmk.kill_heaviest_task=true
