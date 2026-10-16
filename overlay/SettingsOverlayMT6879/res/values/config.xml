@@ -12,4 +12,13 @@
 
     <!-- Uses the legacy UDFPS enrollment UI with side text instead of a footer button. -->
     <bool name="config_useLegacyUdfpsUi">true</bool>
+
+    <!-- Intent action to open Avatar Picker app -->
+    <string name="config_avatar_picker_action" translatable="false">com.android.avatarpicker.FULL_SCREEN_ACTIVITY</string>
+
+    <!-- User avatar dialog result broadcast explicit package -->
+    <string name="config_avatar_picker_package" translatable="false">com.android.avatarpicker</string>
+
+    <!-- Avatar picker activity class name -->
+    <string name="config_avatar_picker_class" translatable="false">com.android.avatarpicker.ui.AvatarPickerActivity</string>
 </resources>
