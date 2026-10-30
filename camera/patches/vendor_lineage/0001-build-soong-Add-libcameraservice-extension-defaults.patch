@@ -1,0 +1,35 @@
+From d58e7723cb7c33d30663b048e7915002d3ea466d Mon Sep 17 00:00:00 2001
+From: c <a@b>
+Date: Fri, 30 Oct 2026 07:57:43 +0000
+Subject: [PATCH] build: soong: Add libcameraservice extension defaults module
+
+---
+ build/soong/Android.bp | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/build/soong/Android.bp b/build/soong/Android.bp
+index 237f7aa..335f395 100644
+--- a/build/soong/Android.bp
++++ b/build/soong/Android.bp
+@@ -117,3 +117,21 @@ cc_library_headers {
+     name: "prebuilt_kernel_headers",
+     defaults: ["prebuilt_kernel_header_defaults"],
+ }
++
++// Camera provider extension (torch strength control)
++soong_config_module_type {
++    name: "libcameraservice_extension",
++    module_type: "cc_defaults",
++    config_namespace: "libcameraservice",
++    value_variables: ["ext_lib"],
++    properties: ["whole_static_libs"],
++}
++
++libcameraservice_extension {
++    name: "libcameraservice_ext_lib_defaults",
++    soong_config_variables: {
++        ext_lib: {
++            whole_static_libs: ["%s"],
++        },
++    },
++}

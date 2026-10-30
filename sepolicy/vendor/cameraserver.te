@@ -1,0 +1,8 @@
+# Torch brightness control (AW36518 flash LED)
+type vendor_sysfs_torch, sysfs_type, fs_type;
+
+# Traverse sysfs to reach the flash LED node
+allow cameraserver sysfs:dir search;
+
+# The camera service extension writes the torch strength level
+allow cameraserver vendor_sysfs_torch:file { open read write getattr };
