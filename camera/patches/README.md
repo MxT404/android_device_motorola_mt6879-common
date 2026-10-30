@@ -73,13 +73,15 @@ git am /path/to/device/motorola/mt6879-common/camera/patches/vendor_lineage/0001
 
 ## Verification
 
-Windows `cmd` does not understand single quotes and has no `grep`, so use double
-quotes and `findstr`:
+Windows `cmd` does not understand single quotes and has no `grep`. Quote the
+shell command with double quotes so that the pipe is executed on the device
+(Android's toybox provides `grep`):
 
 ```bat
 adb root
 adb shell ls /sys/bus/i2c/devices/
 adb shell ls /sys/bus/i2c/devices/*/torch_brightness
+adb shell "ls -l /sys/bus/i2c/devices/6-0063/driver"     # which driver bound
 rem value is the last applied level, 0 when the camera HAL has full control
 adb shell "cat /sys/bus/i2c/devices/6-0063/torch_brightness"
 rem turn the torch on from the quick settings tile, then dim it live
@@ -95,7 +97,7 @@ and dim the torch while it is on.
 `ls /sys/bus/i2c/devices/*/torch_brightness` finds nothing:
 
 1. The running kernel does not contain the patch. Verify with
-   `adb shell "dmesg | findstr /i torch"` - a patched kernel prints
+   `adb shell "dmesg | grep -i torch"` - a patched kernel prints
    `torch brightness control enabled` while the flash driver probes. If the
    line is missing, apply `camera/patches/kernel/0001-*.patch` to
    `kernel/motorola/mt6879` and rebuild (the drivers are modules, so both the
@@ -106,9 +108,10 @@ and dim the torch while it is on.
 Node exists but there is no slider in the UI:
 
 * `frameworks/av` / `vendor/lineage` patches missing (see section 2) -
-  `adb logcat -d -s cameraserver | findstr /i torch` then reports
+  `adb logcat -d -s cameraserver | findstr /i torch` reports
   `Torch brightness node is not available` only when the node itself cannot be
   opened, otherwise no torch message appears at all.
+  (`adb logcat` runs on the host, so `findstr` is correct there.)
 * SELinux/DAC: check `adb shell "ls -lZ /sys/bus/i2c/devices/6-0063/torch_brightness"`,
   it must be `u:object_r:vendor_sysfs_torch:s0` and `cameraserver cameraserver`.
   A denial shows up as `avc: denied` in `adb shell dmesg`.

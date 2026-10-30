@@ -58,13 +58,13 @@ breaks.
 Verification on a booted device:
 
 ```sh
-# Windows cmd / PowerShell: use double quotes, and use findstr instead of grep
+# Windows cmd: use double quotes so the pipe runs on the device (toybox grep)
 adb root
 adb shell ls /sys/bus/i2c/devices/                 # the flash LED is one of these
 adb shell ls /sys/bus/i2c/devices/*/torch_brightness
 adb shell "cat /sys/bus/i2c/devices/6-0063/torch_brightness"   # 0x00-0x7F, 0 = HAL default
 adb shell "echo 32 > /sys/bus/i2c/devices/6-0063/torch_brightness"   # while torch is on
-adb shell "dmesg | findstr /i torch"              # "torch brightness control enabled"
+adb shell "dmesg | grep -i torch"                # "torch brightness control enabled"
 ```
 
 ## Dependencies
