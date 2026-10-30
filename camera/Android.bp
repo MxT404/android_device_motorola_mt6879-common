@@ -9,10 +9,6 @@ cc_library_static {
     srcs: [
         "CameraProviderExtension.cpp",
     ],
-    cppflags: [
-        "-Wall",
-        "-Werror",
-    ],
     include_dirs: [
         "frameworks/av/services/camera/libcameraservice/common",
     ],

@@ -1,4 +1,4 @@
-From 4f525c56d162c46b541644323080ff548874b0a5 Mon Sep 17 00:00:00 2001
+From 86a07094020b44a9c9f194d81bd6d2610a8ae022 Mon Sep 17 00:00:00 2001
 From: MxT404 <MxT404@users.noreply.github.com>
 Date: Fri, 30 Oct 2026 07:58:27 +0000
 Subject: [PATCH] flashlight: aw36518: Add torch brightness control via sysfs
@@ -23,14 +23,22 @@ Writing 0 drops the override and hands the torch back to the camera HAL.
 
 Signed-off-by: MxT404 <MxT404@users.noreply.github.com>
 ---
- .../misc/mediatek/flashlight/v4l2/aw36518.c   | 85 ++++++++++++++++++-
- 1 file changed, 82 insertions(+), 3 deletions(-)
+ .../misc/mediatek/flashlight/v4l2/aw36518.c   | 86 ++++++++++++++++++-
+ 1 file changed, 83 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/misc/mediatek/flashlight/v4l2/aw36518.c b/drivers/misc/mediatek/flashlight/v4l2/aw36518.c
-index 0388311..a12bc9f 100644
+index 0388311..83f9256 100644
 --- a/drivers/misc/mediatek/flashlight/v4l2/aw36518.c
 +++ b/drivers/misc/mediatek/flashlight/v4l2/aw36518.c
-@@ -73,6 +73,13 @@
+@@ -2,6 +2,7 @@
+ // Copyright (c) 2019 MediaTek Inc.
+ 
+ #include <linux/delay.h>
++#include <linux/device.h>
+ #include <linux/module.h>
+ #include <linux/i2c.h>
+ #include <linux/slab.h>
+@@ -73,6 +74,13 @@
  #define aw36518_TORCH_BRT_REG_TO_uA(a)		\
  	((a) * aw36518_TORCH_BRT_STEP + aw36518_TORCH_BRT_MIN)
  
@@ -44,7 +52,7 @@ index 0388311..a12bc9f 100644
  #define aw36518_COOLER_MAX_STATE 5
  static const int flash_state_to_current_limit[aw36518_COOLER_MAX_STATE] = {
  	100000, 80000, 60000, 40000, 20000
-@@ -132,6 +139,8 @@ struct aw36518_flash {
+@@ -132,6 +140,8 @@ struct aw36518_flash {
  	unsigned long target_state;
  	unsigned long target_current;
  	unsigned long ori_current;
@@ -53,7 +61,7 @@ index 0388311..a12bc9f 100644
  };
  
  /* define usage count */
-@@ -212,7 +221,8 @@ static int aw36518_torch_brt_ctrl(struct aw36518_flash *flash,
+@@ -212,7 +222,8 @@ static int aw36518_torch_brt_ctrl(struct aw36518_flash *flash,
  		}
  	}
  
@@ -63,7 +71,7 @@ index 0388311..a12bc9f 100644
  
  	rval = regmap_update_bits(flash->regmap,
  					  REG_LED0_TORCH_BR, 0xff, br_bits);
-@@ -362,7 +372,12 @@ static int aw36518_set_ctrl(struct v4l2_ctrl *ctrl, enum aw36518_led_id led_no)
+@@ -362,7 +373,12 @@ static int aw36518_set_ctrl(struct v4l2_ctrl *ctrl, enum aw36518_led_id led_no)
  		break;
  
  	case V4L2_CID_FLASH_TORCH_INTENSITY:
@@ -77,7 +85,7 @@ index 0388311..a12bc9f 100644
  		break;
  	}
  
-@@ -634,7 +649,11 @@ static int aw36518_ioctl(unsigned int cmd, unsigned long arg)
+@@ -634,7 +650,11 @@ static int aw36518_ioctl(unsigned int cmd, unsigned long arg)
  		pr_info_ratelimited("FLASH_IOC_SET_ONOFF(%d): %d\n",
  				channel, (int)fl_arg->arg);
  		if ((int)fl_arg->arg) {
@@ -90,7 +98,7 @@ index 0388311..a12bc9f 100644
  			aw36518_flash_data->led_mode = V4L2_FLASH_LED_MODE_TORCH;
  			aw36518_mode_ctrl(aw36518_flash_data);
  			aw36518_enable_ctrl(aw36518_flash_data, channel, true);
-@@ -758,6 +777,61 @@ static struct thermal_cooling_device_ops aw36518_cooling_ops = {
+@@ -758,6 +778,61 @@ static struct thermal_cooling_device_ops aw36518_cooling_ops = {
  	.set_cur_state		= aw36518_cooling_set_cur_state,
  };
  
@@ -152,7 +160,7 @@ index 0388311..a12bc9f 100644
  static struct flashlight_operations aw36518_flash_ops = {
  	aw36518_flash_open,
  	aw36518_flash_release,
-@@ -857,6 +931,10 @@ static int aw36518_probe(struct i2c_client *client,
+@@ -857,6 +932,10 @@ static int aw36518_probe(struct i2c_client *client,
  
  	i2c_set_clientdata(client, flash);
  
@@ -163,7 +171,7 @@ index 0388311..a12bc9f 100644
  	flash->max_state = aw36518_COOLER_MAX_STATE;
  	flash->target_state = 0;
  	flash->need_cooler = 0;
-@@ -876,6 +954,7 @@ static int aw36518_remove(struct i2c_client *client)
+@@ -876,6 +955,7 @@ static int aw36518_remove(struct i2c_client *client)
  	struct aw36518_flash *flash = i2c_get_clientdata(client);
  	unsigned int i;
  
