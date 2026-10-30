@@ -67,7 +67,9 @@
 #v4l2 device
 /dev/video*      0660 camera system
 /dev/media*      0660 camera system
-/dev/v4l-subdev* 0660 camera system
+# 0666 so that cameraserver can dim the torch through the flash LED subdevice
+# (SELinux still restricts access to mtk_v4l2_media_device)
+/dev/v4l-subdev* 0666 camera system
 
 #v4l2 codec
 /dev/vcu    0660 camera system

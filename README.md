@@ -26,46 +26,47 @@ device/motorola/mt6879-common
 ## Torch brightness control
 
 The Edge 40 Neo uses an **AW36518** flash LED on `i2c-6` (`0x63`), driven by the
-MediaTek V4L2 flash driver that the camera HAL talks to through
-`V4L2_CID_FLASH_TORCH_INTENSITY`. Torch strength is implemented the same way as
-on other devices:
+MediaTek V4L2 flash driver; the camera HAL talks to it through
+`V4L2_CID_FLASH_TORCH_INTENSITY` (7 bit register, `0x00` - `0x7F`).
+
+**No kernel change is needed**, the stock kernel already exposes the control:
 
 * `camera/CameraProviderExtension.cpp` implements `supportsTorchStrengthControlExt()`
-  and friends and writes the 7 bit torch brightness register through the
-  `torch_brightness` node of the flash LED I2C client. The node is looked up
-  under `/sys/bus/i2c/devices/`, so it works with either flash driver that can
-  be bound on this platform (`aw36518@63` from the manaus overlay or
-  `lm3644@63` from the base dtsi).
+  and friends. It finds the flash LED subdevice under `/sys/class/video4linux`
+  (`aw36518 6-0063` or `lm3644 6-0063`, depending on which driver bound), asks
+  it for the `V4L2_CID_FLASH_TORCH_INTENSITY` range and writes the level with
+  `VIDIOC_S_CTRL` - the same interface the camera HAL uses itself. If a patched
+  kernel with the `torch_brightness` sysfs node is running, that node is used
+  instead (it keeps the level across torch off/on).
 * `camera/Android.bp` builds it as `libcameraservice_extension.mt6879`, which
   `mt6879.mk` links into `libcameraservice` with
   `soong_config_set,libcameraservice,ext_lib`.
-* `init/init.mt6879.rc` and `sepolicy/vendor` give `cameraserver` access to the
-  sysfs node.
+* `init/ueventd.mt6879.rc` makes `/dev/v4l-subdev*` reachable (0666, SELinux
+  still restricts it) and `sepolicy/vendor/cameraserver.te` allows `cameraserver`
+  to use `mtk_v4l2_media_device`.
 
-Two things live outside of this repository and are provided as patches in
-`camera/patches/` (see the README there):
+The UI (the strength slider behind the flashlight tile) needs the
+`libcameraservice` extension hook on the ROM side. LineageOS does not ship it,
+so apply the two patches from `camera/patches/` (details in its README):
 
 | Repository | Patch | Needed for |
 | --- | --- | --- |
-| `kernel/motorola/mt6879` | `camera/patches/kernel/0001-*.patch` | the `torch_brightness` sysfs node itself |
-| `frameworks/av` | `camera/patches/frameworks_av/0001-*.patch` | the libcameraservice extension hook (ROMs that do not already have it) |
-| `vendor/lineage` | `camera/patches/vendor_lineage/0001-*.patch` | the `libcameraservice` `ext_lib` soong config type |
+| `frameworks/av` | `camera/patches/frameworks_av/0001-*.patch` | the libcameraservice extension hook (skip if the ROM already has `CameraProviderExtension.h`) |
+| `vendor/lineage` | `camera/patches/vendor_lineage/0001-*.patch` | the `libcameraservice` `ext_lib` soong config type (same) |
+| `kernel/motorola/mt6879` | `camera/patches/kernel/0001-*.patch` | **optional**, only adds the `torch_brightness` sysfs node |
 
-Without the kernel patch the sysfs node is missing, `supportsTorchStrengthControlExt()`
-returns `false` and the flashlight simply stays single level, i.e. nothing else
-breaks.
+Verification on a booted device (Windows cmd: quote the `adb shell` argument so
+pipes run on the phone):
 
-Verification on a booted device:
-
-```sh
-# Windows cmd: use double quotes so the pipe runs on the device (toybox grep)
+```bat
 adb root
-adb shell ls /sys/bus/i2c/devices/                 # the flash LED is one of these
-adb shell ls /sys/bus/i2c/devices/*/torch_brightness
-adb shell "cat /sys/bus/i2c/devices/6-0063/torch_brightness"   # 0x00-0x7F, 0 = HAL default
-adb shell "echo 32 > /sys/bus/i2c/devices/6-0063/torch_brightness"   # while torch is on
-adb shell "dmesg | grep -i torch"                # "torch brightness control enabled"
+adb shell "ls /sys/class/video4linux/"
+adb shell "cat /sys/class/video4linux/v4l-subdev*/name"     # "aw36518 6-0063"
+adb shell "ls -lZ /dev/v4l-subdev*"                        # mtk_v4l2_media_device, 0666
+adb logcat -d -s cameraserver | findstr /i torch          # "Using /dev/v4l-subdevN (aw36518 6-0063) for torch strength"
 ```
+
+Long press the flashlight tile with the torch on, the slider should dim it.
 
 ## Dependencies
 

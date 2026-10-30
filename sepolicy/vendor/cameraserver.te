@@ -1,8 +1,12 @@
 # Torch brightness control (AW36518 flash LED)
+
+# The camera service extension dims the torch through
+# V4L2_CID_FLASH_TORCH_INTENSITY of the flash LED subdevice. MediaTek labels
+# /dev/v4l-subdev* as mtk_v4l2_media_device (device/mediatek/sepolicy_vndr).
+allow cameraserver mtk_v4l2_media_device:chr_file { open read write ioctl getattr };
+
+# Same for the torch_brightness sysfs node of the (optional) kernel patch.
 type vendor_sysfs_torch, sysfs_type, fs_type;
 
-# Traverse sysfs to reach the flash LED node
 allow cameraserver sysfs:dir search;
-
-# The camera service extension writes the torch strength level
 allow cameraserver vendor_sysfs_torch:file { open read write getattr };
