@@ -1,4 +1,4 @@
-# Torch brightness control for Motorola MT6879 (manaus / AW36518)
+# Torch brightness control for Motorola MT6879 (manaus)
 
 This directory contains the patches that are needed outside of this device tree
 to get the flashlight strength slider working. The device side (the
@@ -6,10 +6,13 @@ to get the flashlight strength slider working. The device side (the
 repository, `soong_config_set,libcameraservice,ext_lib` in `mt6879.mk` links it
 into `libcameraservice`.
 
-The flashlight of the Edge 40 Neo is an **AW36518** LED driver
-(`mediatek,aw36518` in `cust_mt6879_camera_v4l2_manaus.dtsi`) handled by the
-V4L2 flash driver, `libcam.hal3a.v3.flash.v4l2.so` in the camera HAL talks to
-it through `V4L2_CID_FLASH_LED_MODE` / `V4L2_CID_FLASH_TORCH_INTENSITY`.
+The flashlight of the Edge 40 Neo is an LED driver on `i2c-6` at address `0x63`.
+Two nodes exist in the DT for that address - `aw36518@63` (`mediatek,aw36518`,
+added by `cust_mt6879_camera_v4l2_manaus.dtsi`) and `lm3644@63`
+(`mediatek,lm3644`, from the base `cust_mt6879_camera_v4l2.dtsi`) - and both
+drivers are in `modules.load`, so the patch covers both. The camera HAL
+(`libcam.hal3a.v3.flash.v4l2.so`) drives whichever one bound through
+`V4L2_CID_FLASH_LED_MODE` / `V4L2_CID_FLASH_TORCH_INTENSITY`.
 
 ## 1. Kernel: `kernel/motorola/mt6879`
 
@@ -18,11 +21,12 @@ cd kernel/motorola/mt6879
 git am /path/to/device/motorola/mt6879-common/camera/patches/kernel/0001-*.patch
 ```
 
-`drivers/misc/mediatek/flashlight/v4l2/aw36518.c` gains a `torch_brightness`
-sysfs node on the I2C client of the flash LED:
+`drivers/misc/mediatek/flashlight/v4l2/aw36518.c` and
+`drivers/misc/mediatek/flashlight/v4l2/lm3644.c` gain a `torch_brightness` sysfs
+node on the I2C client of the flash LED:
 
 ```
-/sys/bus/i2c/devices/6-0063/torch_brightness
+/sys/bus/i2c/devices/<bus>-0063/torch_brightness      # 6-0063 on manaus
 ```
 
 It accepts the raw 7 bit (0x00 - 0x7F) torch brightness register value, applies
@@ -69,23 +73,49 @@ git am /path/to/device/motorola/mt6879-common/camera/patches/vendor_lineage/0001
 
 ## Verification
 
-```sh
-adb root
-# node exists, value is the last applied level (0 when the HAL has full control)
-adb shell cat /sys/bus/i2c/devices/6-0063/torch_brightness
+Windows `cmd` does not understand single quotes and has no `grep`, so use double
+quotes and `findstr`:
 
-# turn the torch on from the quick settings tile, then dim it live
-adb shell 'echo 16  > /sys/bus/i2c/devices/6-0063/torch_brightness'
-adb shell 'echo 127 > /sys/bus/i2c/devices/6-0063/torch_brightness'
+```bat
+adb root
+adb shell ls /sys/bus/i2c/devices/
+adb shell ls /sys/bus/i2c/devices/*/torch_brightness
+rem value is the last applied level, 0 when the camera HAL has full control
+adb shell "cat /sys/bus/i2c/devices/6-0063/torch_brightness"
+rem turn the torch on from the quick settings tile, then dim it live
+adb shell "echo 16 > /sys/bus/i2c/devices/6-0063/torch_brightness"
+adb shell "echo 127 > /sys/bus/i2c/devices/6-0063/torch_brightness"
 ```
 
 Long press the flashlight tile afterwards, the brightness slider should show up
-and dim the torch while it is on. `logcat -s cameraserver` reports
-`Torch brightness node is not available` when the node is missing (kernel
-without the patch, or the permissions below were not applied).
+and dim the torch while it is on.
+
+## Troubleshooting
+
+`ls /sys/bus/i2c/devices/*/torch_brightness` finds nothing:
+
+1. The running kernel does not contain the patch. Verify with
+   `adb shell "dmesg | findstr /i torch"` - a patched kernel prints
+   `torch brightness control enabled` while the flash driver probes. If the
+   line is missing, apply `camera/patches/kernel/0001-*.patch` to
+   `kernel/motorola/mt6879` and rebuild (the drivers are modules, so both the
+   boot image and `vendor_dlkm` need to be flashed).
+2. Check which driver bound: `adb shell ls -l /sys/bus/i2c/devices/6-0063/driver`.
+   Both `aw36518` and `lm3644` are covered, any other driver is not.
+
+Node exists but there is no slider in the UI:
+
+* `frameworks/av` / `vendor/lineage` patches missing (see section 2) -
+  `adb logcat -d -s cameraserver | findstr /i torch` then reports
+  `Torch brightness node is not available` only when the node itself cannot be
+  opened, otherwise no torch message appears at all.
+* SELinux/DAC: check `adb shell "ls -lZ /sys/bus/i2c/devices/6-0063/torch_brightness"`,
+  it must be `u:object_r:vendor_sysfs_torch:s0` and `cameraserver cameraserver`.
+  A denial shows up as `avc: denied` in `adb shell dmesg`.
 
 Node permissions are handled by this device tree:
 
-* `init/init.mt6879.rc` - `chown cameraserver cameraserver` + `chmod 0660`
+* `init/init.mt6879.rc` - `chown cameraserver cameraserver` + `chmod 0660` on
+  `/sys/bus/i2c/devices/6-0063/torch_brightness`
 * `sepolicy/vendor/genfs_contexts` - `vendor_sysfs_torch` label
 * `sepolicy/vendor/cameraserver.te` - `allow cameraserver vendor_sysfs_torch:file ...`

@@ -12,21 +12,25 @@
 #include <fstream>
 #include <string>
 
+#include <dirent.h>
 #include <unistd.h>
 
 /*
- * MediaTek AW36518 flash LED driver (drivers/misc/mediatek/flashlight/v4l2).
+ * MediaTek V4L2 flash LED drivers (drivers/misc/mediatek/flashlight/v4l2,
+ * AW36518 and LM3644 on MT6879).
  *
- * The driver stores the torch brightness in a 7 bit hardware register, so the
- * usable range is 0x00 - 0x7F. Bit 7 of that register is a hardware override
+ * They store the torch brightness in a 7 bit hardware register, so the usable
+ * range is 0x00 - 0x7F. Bit 7 of the AW36518 register is a hardware override
  * bit and must stay cleared, hence 0x7F is the maximum strength we expose.
  *
- * The node is an attribute of the I2C client, which is instantiated from
- * &i2c6 in cust_mt6879_camera_v4l2_manaus.dtsi, hence the stable
- * <bus>-<address> path below.
+ * torch_brightness is an attribute of the I2C client of the flash LED, i.e.
+ * /sys/bus/i2c/devices/<bus>-<address>/torch_brightness. Which of the two
+ * drivers ends up bound depends on the device tree (the manaus overlay uses
+ * aw36518@63 while the base mt6879 dtsi has lm3644@63), so look the node up
+ * instead of hardcoding bus and address.
  */
-static constexpr const char* kTorchBrightnessPath =
-        "/sys/bus/i2c/devices/6-0063/torch_brightness";
+static constexpr const char* kI2cDevicesPath = "/sys/bus/i2c/devices";
+static constexpr const char* kTorchBrightnessNode = "torch_brightness";
 
 static constexpr int32_t kTorchMaxStrengthLevel = 0x7F;
 
@@ -39,6 +43,35 @@ static constexpr int32_t kTorchDefaultStrengthLevel = 64;
 
 static std::atomic<bool> gTorchEnabled{false};
 static std::atomic<int32_t> gTorchStrengthLevel{kTorchDefaultStrengthLevel};
+
+static const std::string& torchBrightnessPath() {
+    static std::string path;
+
+    if (!path.empty()) {
+        return path;
+    }
+
+    DIR* dir = opendir(kI2cDevicesPath);
+    if (dir == nullptr) {
+        return path;
+    }
+
+    while (const dirent* entry = readdir(dir)) {
+        if (entry->d_name[0] == '.') {
+            continue;
+        }
+
+        std::string candidate = std::string(kI2cDevicesPath) + "/" + entry->d_name + "/" +
+                                kTorchBrightnessNode;
+        if (access(candidate.c_str(), R_OK | W_OK) == 0) {
+            path = candidate;
+            break;
+        }
+    }
+
+    closedir(dir);
+    return path;
+}
 
 template <typename T>
 static bool writeValue(const std::string& path, const T& value) {
@@ -79,7 +112,9 @@ static int32_t clampStrength(int32_t strength) {
 }
 
 bool supportsTorchStrengthControlExt() {
-    return access(kTorchBrightnessPath, R_OK | W_OK) == 0;
+    const std::string& path = torchBrightnessPath();
+
+    return !path.empty() && access(path.c_str(), R_OK | W_OK) == 0;
 }
 
 int32_t getTorchDefaultStrengthLevelExt() {
@@ -97,7 +132,7 @@ int32_t getTorchStrengthLevelExt() {
     if (gTorchEnabled.load()) {
         int32_t hardwareStrength = 0;
 
-        if (readValue(kTorchBrightnessPath, &hardwareStrength)) {
+        if (readValue(torchBrightnessPath(), &hardwareStrength)) {
             hardwareStrength = clampStrength(hardwareStrength);
             if (hardwareStrength > 0) {
                 strength = hardwareStrength;
@@ -110,7 +145,9 @@ int32_t getTorchStrengthLevelExt() {
 }
 
 void setTorchStrengthLevelExt(int32_t torchStrength, bool enabled) {
-    if (!supportsTorchStrengthControlExt()) {
+    const std::string& path = torchBrightnessPath();
+
+    if (path.empty()) {
         LOG(ERROR) << "Torch brightness node is not available";
         return;
     }
@@ -118,7 +155,7 @@ void setTorchStrengthLevelExt(int32_t torchStrength, bool enabled) {
     /* Writing 0 drops the override and lets the HAL drive the torch again. */
     const int32_t strength = enabled ? clampStrength(torchStrength) : 0;
 
-    if (!writeValue(kTorchBrightnessPath, strength)) {
+    if (!writeValue(path, strength)) {
         LOG(ERROR) << "Failed to set torch strength level to " << strength;
         return;
     }

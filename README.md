@@ -31,8 +31,11 @@ MediaTek V4L2 flash driver that the camera HAL talks to through
 on other devices:
 
 * `camera/CameraProviderExtension.cpp` implements `supportsTorchStrengthControlExt()`
-  and friends and writes the 7 bit torch brightness register through
-  `/sys/bus/i2c/devices/6-0063/torch_brightness`.
+  and friends and writes the 7 bit torch brightness register through the
+  `torch_brightness` node of the flash LED I2C client. The node is looked up
+  under `/sys/bus/i2c/devices/`, so it works with either flash driver that can
+  be bound on this platform (`aw36518@63` from the manaus overlay or
+  `lm3644@63` from the base dtsi).
 * `camera/Android.bp` builds it as `libcameraservice_extension.mt6879`, which
   `mt6879.mk` links into `libcameraservice` with
   `soong_config_set,libcameraservice,ext_lib`.
@@ -55,9 +58,13 @@ breaks.
 Verification on a booted device:
 
 ```sh
+# Windows cmd / PowerShell: use double quotes, and use findstr instead of grep
 adb root
-adb shell cat /sys/bus/i2c/devices/6-0063/torch_brightness   # current level (0x00-0x7F)
-adb shell 'echo 32 > /sys/bus/i2c/devices/6-0063/torch_brightness'   # while torch is on
+adb shell ls /sys/bus/i2c/devices/                 # the flash LED is one of these
+adb shell ls /sys/bus/i2c/devices/*/torch_brightness
+adb shell "cat /sys/bus/i2c/devices/6-0063/torch_brightness"   # 0x00-0x7F, 0 = HAL default
+adb shell "echo 32 > /sys/bus/i2c/devices/6-0063/torch_brightness"   # while torch is on
+adb shell "dmesg | findstr /i torch"              # "torch brightness control enabled"
 ```
 
 ## Dependencies
